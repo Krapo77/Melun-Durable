@@ -14,34 +14,44 @@
 <body>
     <div id="sidebar">
         <h2>Melun Durable</h2>
-        <p>Analyse de proximite (5 min a pied) aux services eco-citoyens.</p>
-        <div class="score-box" style="background: #27ae60;">Score 4/4 : Zone Ideale</div>
+        <p>Analyse de proximité (5 min à pied) aux services éco-citoyens.</p>
+        <div class="score-box" style="background: #27ae60;">Score 4/4 : Zone Idéale</div>
         <div class="score-box" style="background: #f1c40f; color: black;">Score 2/4 : Zone Moyenne</div>
-        <div class="score-box" style="background: #e74c3c;">Score 0/4 : Zone Blanche</div>
-        <hr>
-        <h4>Afficher les equipements :</h4>
-        <input type="checkbox" id="check-irve" checked> Bornes Electriques<br>
-        <input type="checkbox" id="check-tri" checked> Points de Recyclage<br>
-        <input type="checkbox" id="check-sport" checked> Equipements Sportifs<br>
-        <input type="checkbox" id="check-vert" checked> Parcs & Jardins
+        <div class="score-box" style="background: #e74c3c;">Score 0/4 : Zone Défavorable</div>
+        
+        <hr/>
+        <h3>Filtres Éco-services</h3>
+        <label><input type="checkbox" data-type="irve" checked> Bornes de Recharge (Bleu)</label><br><br>
+        <label><input type="checkbox" data-type="tri" checked> Points de Tri (Orange)</label><br><br>
+        <label><input type="checkbox" data-type="sport" checked> Équipements Sportifs (Violet)</label><br><br>
+        <label><input type="checkbox" data-type="vert" checked> Espaces Verts (Vert)</label>
     </div>
     <div id="map"></div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        const map = L.map('map').setView([48.54, 2.66], 14);
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
+        // Initialisation globale de la carte
+        const map = L.map('map').setView([48.541, 2.655], 14);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
 
-        fetch('melun_data.json').then(r => r.json()).then(data => {
-            // Affichage de la Heatmap de score
+        // Cette fonction sera appelée dès que Python aura injecté les données
+        function initMapWithData(data) {
+            if (!data) return;
+
+            // 1. Affichage de la Heatmap de score
+            const colors = ['#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#27ae60'];
             data.analysis.forEach(p => {
-                const colors = ['#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#27ae60'];
                 L.circle([p.lat, p.lng], {
-                    radius: 40, color: colors[p.score], fillOpacity: 0.5, stroke: false
+                    radius: 40, 
+                    color: colors[p.score] || '#f1c40f', 
+                    fillOpacity: 0.4, 
+                    stroke: false
                 }).addTo(map);
             });
 
-            // Ajout des marqueurs (triés par calques)
+            // 2. Création et affichage des marqueurs par calques
             const layers = {
                 irve: L.layerGroup().addTo(map),
                 tri: L.layerGroup().addTo(map),
@@ -50,21 +60,35 @@
             };
 
             const icons = { irve: 'blue', tri: 'orange', sport: 'purple', vert: 'green' };
+            
             Object.keys(data.markers).forEach(key => {
-                data.markers[key].forEach(m => {
-                    L.circleMarker(m, { radius: 5, color: icons[key] }).addTo(layers[key]);
-                });
+                if (layers[key]) {
+                    data.markers[key].forEach(m => {
+                        L.circleMarker(m, { 
+                            radius: 6, 
+                            color: '#fff',
+                            weight: 1,
+                            fillColor: icons[key], 
+                            fillOpacity: 0.8 
+                        }).addTo(layers[key]);
+                    });
+                }
             });
 
-            // Gestion des checkboxes
-            document.querySelectorAll('input').forEach(input => {
+            // 3. Gestion dynamique des cases à cocher (filtres)
+            document.querySelectorAll('input[type="checkbox"]').forEach(input => {
                 input.onchange = (e) => {
-                    const type = e.target.id.split('-')[1];
-                    if(e.target.checked) map.addLayer(layers[type]);
-                    else map.removeLayer(layers[type]);
+                    const type = e.target.getAttribute('data-type');
+                    if (layers[type]) {
+                        if (e.target.checked) {
+                            map.addLayer(layers[type]);
+                        } else {
+                            map.removeLayer(layers[type]);
+                        }
+                    }
                 };
             });
-        });
+        }
     </script>
 </body>
 </html>
