@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Melun Open Data Challenge</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { margin: 0; font-family: sans-serif; display: flex; height: 100vh; }
+        #sidebar { width: 300px; padding: 20px; background: #2c3e50; color: white; overflow-y: auto; }
+        #map { flex: 1; }
+        .legend { background: white; padding: 10px; color: black; border-radius: 5px; line-height: 1.5; }
+        .score-box { padding: 10px; margin: 10px 0; border-radius: 5px; text-align: center; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div id="sidebar">
+        <h2>Melun Durable</h2>
+        <p>Analyse de proximite (5 min a pied) aux services eco-citoyens.</p>
+        <div class="score-box" style="background: #27ae60;">Score 4/4 : Zone Ideale</div>
+        <div class="score-box" style="background: #f1c40f; color: black;">Score 2/4 : Zone Moyenne</div>
+        <div class="score-box" style="background: #e74c3c;">Score 0/4 : Zone Blanche</div>
+        <hr>
+        <h4>Afficher les equipements :</h4>
+        <input type="checkbox" id="check-irve" checked> Bornes Electriques<br>
+        <input type="checkbox" id="check-tri" checked> Points de Recyclage<br>
+        <input type="checkbox" id="check-sport" checked> Equipements Sportifs<br>
+        <input type="checkbox" id="check-vert" checked> Parcs & Jardins
+    </div>
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const map = L.map('map').setView([48.54, 2.66], 14);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
+
+        fetch('melun_data.json').then(r => r.json()).then(data => {
+            // Affichage de la Heatmap de score
+            data.analysis.forEach(p => {
+                const colors = ['#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#27ae60'];
+                L.circle([p.lat, p.lng], {
+                    radius: 40, color: colors[p.score], fillOpacity: 0.5, stroke: false
+                }).addTo(map);
+            });
+
+            // Ajout des marqueurs (triés par calques)
+            const layers = {
+                irve: L.layerGroup().addTo(map),
+                tri: L.layerGroup().addTo(map),
+                sport: L.layerGroup().addTo(map),
+                vert: L.layerGroup().addTo(map)
+            };
+
+            const icons = { irve: 'blue', tri: 'orange', sport: 'purple', vert: 'green' };
+            Object.keys(data.markers).forEach(key => {
+                data.markers[key].forEach(m => {
+                    L.circleMarker(m, { radius: 5, color: icons[key] }).addTo(layers[key]);
+                });
+            });
+
+            // Gestion des checkboxes
+            document.querySelectorAll('input').forEach(input => {
+                input.onchange = (e) => {
+                    const type = e.target.id.split('-')[1];
+                    if(e.target.checked) map.addLayer(layers[type]);
+                    else map.removeLayer(layers[type]);
+                };
+            });
+        });
+    </script>
+</body>
+</html>
